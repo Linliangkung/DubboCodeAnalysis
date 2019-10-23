@@ -161,7 +161,7 @@ public class RegistryProtocol implements Protocol {
     }
 
     public void setProtocol(Protocol protocol) {
-        this.protocol = protocol;
+       this.protocol = protocol;
     }
 
     public void setRegistryFactory(RegistryFactory registryFactory) {
@@ -207,6 +207,7 @@ public class RegistryProtocol implements Protocol {
 
         providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);
         //export invoker
+
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
 
         // url to registry

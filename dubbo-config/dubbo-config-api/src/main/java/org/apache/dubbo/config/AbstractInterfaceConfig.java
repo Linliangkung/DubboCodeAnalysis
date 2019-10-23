@@ -162,6 +162,8 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
 
     /**
      * Registry centers
+     *
+     * 当前服务暴露到注册中心配置集合
      */
     protected List<RegistryConfig> registries;
 
@@ -695,6 +697,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     }
 
     public void setProxy(String proxy) {
+        //校验是否对应的代理模式
         checkExtension(ProxyFactory.class, PROXY_KEY, proxy);
         this.proxy = proxy;
     }

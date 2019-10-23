@@ -86,6 +86,8 @@ public class AdaptiveClassCodeGenerator {
      */
     public String generate() {
         // no need to generate adaptive class since there's no adaptive method found.
+        //判断拓展接口是否存在声明@Adaptive注解的方法
+        //没有声明@Adaptive注解的方法调用回抛异常
         if (!hasAdaptiveMethod()) {
             throw new IllegalStateException("No adaptive method exist on extension " + type.getName() + ", refuse to create the adaptive class!");
         }
@@ -199,32 +201,40 @@ public class AdaptiveClassCodeGenerator {
         Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);
         StringBuilder code = new StringBuilder(512);
         if (adaptiveAnnotation == null) {
+            //不存在@Adaptive注解时，执行抛Unsupported异常
             return generateUnsupported(method);
         } else {
+            //获取方法URL类型的形参位置
             int urlTypeIndex = getUrlTypeIndex(method);
 
             // found parameter in URL type
             if (urlTypeIndex != -1) {
                 // Null Point check
+                //如果方法存在URL类型的形参
                 code.append(generateUrlNullCheck(urlTypeIndex));
             } else {
                 // did not find parameter in URL type
+                //如果不存在URL类型的形参，通过遍历实参对应类型的方法是否存在get方法，且返回类型为URL类型，如果不存在抛出异常
                 code.append(generateUrlAssignmentIndirectly(method));
             }
-
+            //获取方法上@Adaptive注解value
             String[] value = getMethodAdaptiveValue(adaptiveAnnotation);
 
+            //是否存在Invocation的形参
             boolean hasInvocation = hasInvocationArgument(method);
-
+            //Invocation形参校验
             code.append(generateInvocationArgumentNullCheck(method));
 
+            //构建从URL中获取标识名逻辑
             code.append(generateExtNameAssignment(value, hasInvocation));
             // check extName == null?
             code.append(generateExtNameNullCheck(value));
 
+            //根据标识名获取拓展接口实现类对象
             code.append(generateExtensionAssignment());
 
             // return statement
+            //执行实现类对象对应方法，并返回
             code.append(generateReturnAndInvocation(method));
         }
 
@@ -268,14 +278,14 @@ public class AdaptiveClassCodeGenerator {
                     }
                 }
             } else {
-                if (!"protocol".equals(value[i])) {
-                    if (hasInvocation) {
-                        getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
+                    if (!"protocol".equals(value[i])) {
+                        if (hasInvocation) {
+                            getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
+                        } else {
+                            getNameCode = String.format("url.getParameter(\"%s\", %s)", value[i], getNameCode);
+                        }
                     } else {
-                        getNameCode = String.format("url.getParameter(\"%s\", %s)", value[i], getNameCode);
-                    }
-                } else {
-                    getNameCode = String.format("url.getProtocol() == null ? (%s) : url.getProtocol()", getNameCode);
+                        getNameCode = String.format("url.getProtocol() == null ? (%s) : url.getProtocol()", getNameCode);
                 }
             }
         }

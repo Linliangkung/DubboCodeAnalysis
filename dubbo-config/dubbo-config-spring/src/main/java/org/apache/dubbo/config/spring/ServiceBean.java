@@ -54,7 +54,11 @@ import static org.apache.dubbo.config.spring.util.BeanFactoryUtils.addApplicatio
 
 /**
  * ServiceFactoryBean
+ * Dubbo 服务暴露是通过ServiceConfig的export方法进行(最终实现do)
  *
+ * ServiceBean执行父类暴露服务时机有两个：
+ * 1.如果在setApplicationContext方法中添加ApplicationEvent失败，则会在初始化ServiceBean中暴露服务，即afterPropertiesSet方法中
+ * 2.如果在上述方法条件中，添加ApplicaitonEvent成功，则会在ContextRefreshedEvent时间发布后暴露服务,即onApplicationEvent中
  * @export
  */
 public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean, DisposableBean,
@@ -196,6 +200,8 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
         if ((CollectionUtils.isEmpty(getRegistries()))
                 && (getProvider() == null || CollectionUtils.isEmpty(getProvider().getRegistries()))
                 && (getApplication() == null || CollectionUtils.isEmpty(getApplication().getRegistries()))) {
+            //如果applicationContext不为空，则通过spring容器获取类型为RegistryConfig的对象，
+            // 并封装成一个Map，Map的key为RegistryConfig的名称，value为对象本身
             Map<String, RegistryConfig> registryConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, RegistryConfig.class, false, false);
             if (CollectionUtils.isNotEmptyMap(registryConfigMap)) {
                 List<RegistryConfig> registryConfigs = new ArrayList<>();
@@ -210,6 +216,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 if (registryConfigs.isEmpty()) {
                     for (RegistryConfig config : registryConfigMap.values()) {
                         if (StringUtils.isEmpty(registryIds)) {
+                            //如果当前ServiceBean的注册中心配置为空且注册中心id配置为空，则添加spring容器的所有注册中心
                             registryConfigs.add(config);
                         }
                     }
@@ -281,6 +288,8 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
 
         if (CollectionUtils.isEmpty(getProtocols())
                 && (getProvider() == null || CollectionUtils.isEmpty(getProvider().getProtocols()))) {
+            //如果applicationContext不为空，则通过spring容器获取类型为ProtocolConfig的对象，
+            // 并封装成一个Map，Map的key为ProtocolConfig的名称，value为对象本身
             Map<String, ProtocolConfig> protocolConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ProtocolConfig.class, false, false);
             if (protocolConfigMap != null && protocolConfigMap.size() > 0) {
                 List<ProtocolConfig> protocolConfigs = new ArrayList<ProtocolConfig>();
@@ -296,6 +305,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 if (protocolConfigs.isEmpty()) {
                     for (ProtocolConfig config : protocolConfigMap.values()) {
                         if (StringUtils.isEmpty(protocolIds)) {
+                            //如果当前ServiceBean的协议配置为空且协议id配置为空，则添加spring容器的所有协议
                             protocolConfigs.add(config);
                         }
                     }

@@ -21,6 +21,9 @@ package org.apache.dubbo.common.utils;
  */
 public class Holder<T> {
 
+    /**
+     * volatile保证线程可见性
+     */
     private volatile T value;
 
     public void set(T value) {

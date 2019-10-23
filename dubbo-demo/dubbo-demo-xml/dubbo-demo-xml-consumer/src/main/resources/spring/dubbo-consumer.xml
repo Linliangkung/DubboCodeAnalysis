@@ -23,8 +23,8 @@
 
     <dubbo:application name="demo-consumer"/>
 
-    <dubbo:registry address="zookeeper://127.0.0.1:2181"/>
+    <dubbo:registry address="nacos://192.168.15.129:8848"/>
 
-    <dubbo:reference id="demoService" check="false" interface="org.apache.dubbo.demo.DemoService"/>
+    <dubbo:reference id="demoService" check="false" interface="org.apache.dubbo.demo.DemoService" />
 
 </beans>

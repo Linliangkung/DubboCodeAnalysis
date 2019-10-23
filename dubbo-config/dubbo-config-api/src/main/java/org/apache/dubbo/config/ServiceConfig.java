@@ -157,6 +157,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     /**
      * The reference of the interface implementation
+     *
+     * 由DubboBeanDefinitionParser解析中通过spring BeanDefinition注入
      */
     private T ref;
 
@@ -367,13 +369,16 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     }
 
     public synchronized void export() {
+        //校验ServiceConfig各种配置
         checkAndUpdateSubConfigs();
 
+        //是否需要暴露，对应<dubbo:service export="true"/>
         if (!shouldExport()) {
             return;
         }
 
         if (shouldDelay()) {
+        //延迟暴露,对应<dubbo:service delay="5"/>
             DELAY_EXPORT_EXECUTOR.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
         } else {
             doExport();
@@ -413,6 +418,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (StringUtils.isEmpty(path)) {
             path = interfaceName;
         }
+        //暴露url
         doExportUrls();
     }
 
@@ -452,6 +458,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private void doExportUrls() {
         List<URL> registryURLs = loadRegistries(true);
         for (ProtocolConfig protocolConfig : protocols) {
+            //遍历当前服务所有协议，逐一暴露
             String pathKey = URL.buildKey(getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), group, version);
             ProviderModel providerModel = new ProviderModel(pathKey, ref, interfaceClass);
             ApplicationModel.initProviderModel(pathKey, providerModel);
@@ -558,7 +565,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             }
         }
         // export service
+        //获取暴露服务使用的host
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
+        //获取暴露服务使用
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
         URL url = new URL(name, host, port, getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), map);
 
@@ -580,6 +589,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             if (!SCOPE_LOCAL.equalsIgnoreCase(scope)) {
                 if (CollectionUtils.isNotEmpty(registryURLs)) {
                     for (URL registryURL : registryURLs) {
+                        //暴露服务到所有注册中心
                         //if protocol is only injvm ,not register
                         if (LOCAL_PROTOCOL.equalsIgnoreCase(url.getProtocol())) {
                             continue;
@@ -664,7 +674,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * Register & bind IP address for service provider, can be configured separately.
      * Configuration priority: environment variables -> java system properties -> host property in config file ->
      * /etc/hosts -> default network address -> first available network address
-     *
+     * 获取服务配置的host(ip)
      * @param protocolConfig
      * @param registryURLs
      * @param map
@@ -672,7 +682,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      */
     private String findConfigedHosts(ProtocolConfig protocolConfig, List<URL> registryURLs, Map<String, String> map) {
         boolean anyhost = false;
-
+        //从系统环境配置中获取===>System.getProperty("DUBBO_IP_TO_BIND")和System.getProperty("protocolConfig.getName()_DUBBO_IP_TO_BIND")
         String hostToBind = getValueFromConfig(protocolConfig, DUBBO_IP_TO_BIND);
         if (hostToBind != null && hostToBind.length() > 0 && isInvalidLocalHost(hostToBind)) {
             throw new IllegalArgumentException("Specified invalid bind ip from property:" + DUBBO_IP_TO_BIND + ", value:" + hostToBind);
@@ -680,14 +690,17 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
         // if bind ip is not found in environment, keep looking up
         if (StringUtils.isEmpty(hostToBind)) {
+            //获取协议配置的host
             hostToBind = protocolConfig.getHost();
             if (provider != null && StringUtils.isEmpty(hostToBind)) {
+                //如果协议没有配置且provider配置不为空，获取provider配置的host
                 hostToBind = provider.getHost();
             }
             if (isInvalidLocalHost(hostToBind)) {
                 anyhost = true;
                 try {
                     logger.info( "No valid ip found from environment, try to find valid host from DNS.");
+                    //如果系统完全没有配置host属性，则通过InetAddress.getLocalHost().getHostAddress()，也是linux中配置在host文件的ip地址
                     hostToBind = InetAddress.getLocalHost().getHostAddress();
                 } catch (UnknownHostException e) {
                     logger.warn(e.getMessage(), e);
@@ -700,6 +713,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                                 continue;
                             }
                             try (Socket socket = new Socket()) {
+                                //通过与注册中心进行tcp连接，获取连接socket的本地host地址
                                 SocketAddress addr = new InetSocketAddress(registryURL.getHost(), registryURL.getPort());
                                 socket.connect(addr, 1000);
                                 hostToBind = socket.getLocalAddress().getHostAddress();
@@ -719,6 +733,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         map.put(Constants.BIND_IP_KEY, hostToBind);
 
         // registry ip is not used for bind ip by default
+        // 如果系统环境配置中获取===>System.getProperty("DUBBO_IP_TO_REGISTRY")和System.getProperty("protocolConfig.getName()_DUBBO_IP_TO_REGISTRY")，配置到注册中心的注册地址不为空
         String hostToRegistry = getValueFromConfig(protocolConfig, DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry != null && hostToRegistry.length() > 0 && isInvalidLocalHost(hostToRegistry)) {
             throw new IllegalArgumentException("Specified invalid registry ip from property:" + DUBBO_IP_TO_REGISTRY + ", value:" + hostToRegistry);

@@ -25,11 +25,17 @@ import org.apache.dubbo.demo.DemoService;
 
 public class Application {
     public static void main(String[] args) throws Exception {
+        //创建ServiceConfig对象
         ServiceConfig<DemoServiceImpl> service = new ServiceConfig<>();
+        //设置应用配置
         service.setApplication(new ApplicationConfig("dubbo-demo-api-provider"));
-        service.setRegistry(new RegistryConfig("zookeeper://127.0.0.1:2181"));
+        //设置注册中心配置
+        service.setRegistry(new RegistryConfig("nacos://192.168.15.129:8848"));
+        //设置服务接口类型，通过接口方法对外暴露配置
         service.setInterface(DemoService.class);
+        //设置服务接口实现类
         service.setRef(new DemoServiceImpl());
+        //执行服务暴露逻辑
         service.export();
         System.in.read();
     }

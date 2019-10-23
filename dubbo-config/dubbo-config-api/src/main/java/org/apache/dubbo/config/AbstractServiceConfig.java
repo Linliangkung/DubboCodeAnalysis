@@ -94,6 +94,9 @@ public abstract class AbstractServiceConfig extends AbstractInterfaceConfig {
 
     /**
      * The protocol list the service will export with
+     *
+     * 当前服务暴露的协议集合
+     *
      */
     protected List<ProtocolConfig> protocols;
     protected String protocolIds;
