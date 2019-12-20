@@ -201,7 +201,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 && (getProvider() == null || CollectionUtils.isEmpty(getProvider().getRegistries()))
                 && (getApplication() == null || CollectionUtils.isEmpty(getApplication().getRegistries()))) {
             //如果applicationContext不为空，则通过spring容器获取类型为RegistryConfig的对象，
-            // 并封装成一个Map，Map的key为RegistryConfig的名称，value为对象本身
+            // 并封装成一个Map，Map的key为RegistryConfig在spring容器中的名字，也就是<dubbo:registry id=""/>中的id，value则为对象本身
             Map<String, RegistryConfig> registryConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, RegistryConfig.class, false, false);
             if (CollectionUtils.isNotEmptyMap(registryConfigMap)) {
                 List<RegistryConfig> registryConfigs = new ArrayList<>();

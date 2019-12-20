@@ -389,4 +389,5 @@ public final class ClassGenerator {
     public static interface DC {
 
     } // dynamic class tag interface.
+
 }

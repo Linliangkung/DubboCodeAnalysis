@@ -81,6 +81,7 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
         beanDefinition.setLazyInit(false);
         String id = element.getAttribute("id");
         if (StringUtils.isEmpty(id) && required) {
+            //如果id为空，且required为true
             String generatedBeanName = element.getAttribute("name");
             if (StringUtils.isEmpty(generatedBeanName)) {
                 if (ProtocolConfig.class.equals(beanClass)) {
@@ -90,11 +91,13 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
                 }
             }
             if (StringUtils.isEmpty(generatedBeanName)) {
+                //最终以beanClass的作为id也就是spring中的beanName
                 generatedBeanName = beanClass.getName();
             }
             id = generatedBeanName;
             int counter = 2;
             while (parserContext.getRegistry().containsBeanDefinition(id)) {
+                //如果重名结尾添加数字区分
                 id = generatedBeanName + (counter++);
             }
         }
@@ -194,7 +197,7 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
                                         value = null;
                                     }
                                     reference = value;
-                                } else if(ONRETURN.equals(property) || ONTHROW.equals(property) || ONINVOKE.equals(property)) {
+                                } else if (ONRETURN.equals(property) || ONTHROW.equals(property) || ONINVOKE.equals(property)) {
                                     int index = value.lastIndexOf(".");
                                     String ref = value.substring(0, index);
                                     String method = value.substring(index + 1);

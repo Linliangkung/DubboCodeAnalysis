@@ -157,7 +157,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     /**
      * The reference of the interface implementation
-     *
+     * <p>
      * 由DubboBeanDefinitionParser解析中通过spring BeanDefinition注入
      */
     private T ref;
@@ -378,9 +378,10 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
 
         if (shouldDelay()) {
-        //延迟暴露,对应<dubbo:service delay="5"/>
+            //延迟暴露,对应<dubbo:service delay="5"/>
             DELAY_EXPORT_EXECUTOR.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
         } else {
+            //执行暴露服务具体逻辑
             doExport();
         }
     }
@@ -456,19 +457,28 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
+        //加载注册中心URL  registry://
         List<URL> registryURLs = loadRegistries(true);
         for (ProtocolConfig protocolConfig : protocols) {
             //遍历当前服务所有协议，逐一暴露
+            //构建pathKey,group/contextPath(优先级协议>ProviderConfig)/path:version
             String pathKey = URL.buildKey(getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), group, version);
             ProviderModel providerModel = new ProviderModel(pathKey, ref, interfaceClass);
+            //初始化model到ApplicationModel
             ApplicationModel.initProviderModel(pathKey, providerModel);
+            //执行使用配置的协议，真正暴露服务到注册中心
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
 
+    /**
+     * @param protocolConfig 协议
+     * @param registryURLs   注册中心地址
+     */
     private void doExportUrlsFor1Protocol(ProtocolConfig protocolConfig, List<URL> registryURLs) {
         String name = protocolConfig.getName();
         if (StringUtils.isEmpty(name)) {
+            //如果协议配置name为空，则默认位dubbo
             name = DUBBO;
         }
 
@@ -485,6 +495,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         appendParameters(map, protocolConfig);
         appendParameters(map, this);
         if (CollectionUtils.isNotEmpty(methods)) {
+            //构建MethodConfig配置
             for (MethodConfig method : methods) {
                 appendParameters(map, method, method.getName());
                 String retryKey = method.getName() + ".retry";
@@ -548,7 +559,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             if (revision != null && revision.length() > 0) {
                 map.put(REVISION_KEY, revision);
             }
-
+            //获取interfaceClass接口方法,设置进map
             String[] methods = Wrapper.getWrapper(interfaceClass).getMethodNames();
             if (methods.length == 0) {
                 logger.warn("No method found in service interface " + interfaceClass.getName());
@@ -567,12 +578,12 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         // export service
         //获取暴露服务使用的host
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
-        //获取暴露服务使用
+        //获取暴露服务使用的port端口
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
+        //生成dubbo://192.168.15.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=192.168.15.1&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello&pid=59828&release=&side=provider&timestamp=1574667968493
         URL url = new URL(name, host, port, getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), map);
 
-        if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
-                .hasExtension(url.getProtocol())) {
+        if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class).hasExtension(url.getProtocol())) {
             url = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                     .getExtension(url.getProtocol()).getConfigurator(url).configure(url);
         }
@@ -612,10 +623,15 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         if (StringUtils.isNotEmpty(proxy)) {
                             registryURL = registryURL.addParameter(PROXY_KEY, proxy);
                         }
-
+                        //暴露服务的关键
+                        //PROXY_FACTORY 是  ProxyFactory适配器类
+                        //如果registryURL中没有proxy参数，默认会使用JavassistProxyFactory
+                        //生成的invoker是最底层的,依赖接口实现的
                         Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString()));
+                        //封装成依赖ServiceConfig的代理调用者
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
+                        //使用协议暴露服务,此protocol时Protocol适配器类，会根据registryURL的协议获取不同具体Prototcol实现
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
                         exporters.add(exporter);
                     }
@@ -675,6 +691,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * Configuration priority: environment variables -> java system properties -> host property in config file ->
      * /etc/hosts -> default network address -> first available network address
      * 获取服务配置的host(ip)
+     *
      * @param protocolConfig
      * @param registryURLs
      * @param map
@@ -699,7 +716,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             if (isInvalidLocalHost(hostToBind)) {
                 anyhost = true;
                 try {
-                    logger.info( "No valid ip found from environment, try to find valid host from DNS.");
+                    logger.info("No valid ip found from environment, try to find valid host from DNS.");
                     //如果系统完全没有配置host属性，则通过InetAddress.getLocalHost().getHostAddress()，也是linux中配置在host文件的ip地址
                     hostToBind = InetAddress.getLocalHost().getHostAddress();
                 } catch (UnknownHostException e) {
@@ -734,6 +751,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
         // registry ip is not used for bind ip by default
         // 如果系统环境配置中获取===>System.getProperty("DUBBO_IP_TO_REGISTRY")和System.getProperty("protocolConfig.getName()_DUBBO_IP_TO_REGISTRY")，配置到注册中心的注册地址不为空
+        //如果找不注册到注册中心的host配置，则使用绑定的host定制
         String hostToRegistry = getValueFromConfig(protocolConfig, DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry != null && hostToRegistry.length() > 0 && isInvalidLocalHost(hostToRegistry)) {
             throw new IllegalArgumentException("Specified invalid registry ip from property:" + DUBBO_IP_TO_REGISTRY + ", value:" + hostToRegistry);
@@ -770,6 +788,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             if (provider != null && (portToBind == null || portToBind == 0)) {
                 portToBind = provider.getPort();
             }
+            //通过协议获取默认端口,如果是dubbo协议则是20880端口
             final int defaultPort = ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(name).getDefaultPort();
             if (portToBind == null || portToBind == 0) {
                 portToBind = defaultPort;
@@ -886,9 +905,14 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         convertProtocolIdsToProtocols();
     }
 
+    /**
+     * 通过ProtocolIds构建Protocols
+     */
     private void convertProtocolIdsToProtocols() {
         if (StringUtils.isEmpty(protocolIds) && CollectionUtils.isEmpty(protocols)) {
+            //如果protocolIds为空
             List<String> configedProtocols = new ArrayList<>();
+            //通过外部配置获取protocolId
             configedProtocols.addAll(getSubProperties(Environment.getInstance()
                     .getExternalConfigurationMap(), PROTOCOLS_SUFFIX));
             configedProtocols.addAll(getSubProperties(Environment.getInstance()
@@ -1073,4 +1097,6 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     public String getPrefix() {
         return DUBBO + ".service." + interfaceName;
     }
+
+
 }

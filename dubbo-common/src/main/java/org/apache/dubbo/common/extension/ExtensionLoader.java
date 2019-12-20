@@ -76,10 +76,13 @@ public class ExtensionLoader<T> {
 
     private static final Pattern NAME_SEPARATOR = Pattern.compile("\\s*[,]+\\s*");
 
+    /**
+     * 静态变量缓存，拓展接口对应的ExtensionLoader缓存，key：拓展接口Class对象  value：对应的ExtensionLoader对象
+     */
     private static final ConcurrentMap<Class<?>, ExtensionLoader<?>> EXTENSION_LOADERS = new ConcurrentHashMap<>();
 
     /**
-     * 静态变量缓存，缓存拓展接口实现类对象，key：拓展接口实现类Class对象  value：实现类对象
+     * 静态变量缓存，拓展接口实现类对象缓存，key：拓展接口实现类Class对象  value：实现类对象
      */
     private static final ConcurrentMap<Class<?>, Object> EXTENSION_INSTANCES = new ConcurrentHashMap<>();
 
@@ -88,6 +91,9 @@ public class ExtensionLoader<T> {
      */
     private final Class<?> type;
 
+    /**
+     * 对象工厂，创建拓展接口实现类对象时ioc注入时获取对象的地方
+     */
     private final ExtensionFactory objectFactory;
 
     /**
@@ -113,10 +119,21 @@ public class ExtensionLoader<T> {
      * 拓展接口适配类对象缓存
      */
     private final Holder<Object> cachedAdaptiveInstance = new Holder<>();
+
+    /**
+     * 保存拓展接口的适配器类
+     */
     private volatile Class<?> cachedAdaptiveClass = null;
+
+    /**
+     * 保存拓展接口默认标记名，也就是拓展接口上@SPI的value属性
+     */
     private String cachedDefaultName;
     private volatile Throwable createAdaptiveInstanceError;
 
+    /**
+     * 保存拓展接口的包装类集合
+     */
     private Set<Class<?>> cachedWrapperClasses;
 
     private Map<String, IllegalStateException> exceptions = new ConcurrentHashMap<>();

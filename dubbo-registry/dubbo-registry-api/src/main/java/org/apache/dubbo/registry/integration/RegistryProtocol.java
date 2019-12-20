@@ -161,7 +161,7 @@ public class RegistryProtocol implements Protocol {
     }
 
     public void setProtocol(Protocol protocol) {
-       this.protocol = protocol;
+        this.protocol = protocol;
     }
 
     public void setRegistryFactory(RegistryFactory registryFactory) {
@@ -193,8 +193,12 @@ public class RegistryProtocol implements Protocol {
 
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
+        //将协议转换成真正的协议,registry==>nacos
         URL registryUrl = getRegistryUrl(originInvoker);
         // url to export locally
+        //dubbo://192.168.15.1:20880/org.apache.dubbo.demo.DemoService
+        // ?anyhost=true&application=dubbo-demo-api-provider&bind.ip=192.168.15.1&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello&pid=152800&release=&side=provider&timestamp=1574759427479
+        //服务提供者暴露地址
         URL providerUrl = getProviderUrl(originInvoker);
 
         // Subscribe the override data
